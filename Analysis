@@ -87,6 +87,15 @@ select issuer_precinct , no_of_violation_code from cte where rnk <= 3;
 5.) Find out the properties of parking violations across different times of the day: The Violation Time field is specified 
 in a strange format. Find a way to make this into a time attribute that you can use to divide into groups ??
 
+select unix_timestamp(regexp_replace(regexp_replace(violation_time, 'P$' ' pm') , 'A$' , ' am') , 'hhmm a') as time,
+array_agg(violation_description) as parking_violation_description
+from  parking_violation_table
+group by unix_timestamp(regexp_replace(regexp_replace(violation_time, 'P$' ' pm') , 'A$' , ' am') , 'hhmm a') ; 
+
+
+6)  Divide 24 hours into 6 equal discrete bins of time. The intervals you choose are at your discretion. 
+For each of these groups, find the 3 most commonly occurring violations ??
+
 with cte as 
 (
 select violation_code,
@@ -105,4 +114,139 @@ from cte1 group by violation_code , bucket )
 select violation_code , bucket , no_of_violation_code 
 from final_output 
 where rnk <= 3;
+
+
+7) Now, try another direction. For the 3 most commonly occurring violation codes, 
+find the most common times of day (in terms of the bins from the previous part) ??
+
+with cte as 
+(
+select violation_code,
+unix_timestamp(regexp_replace(regexp_replace(violation_time, 'P$' ' pm') , 'A$' , ' am') , 'hhmm a') as time
+from parking_violation_table
+),
+cte1 as 
+(
+select violation_code , Ntile(6) over(order by time asc) as bucket ,time
+from cte
+),
+final_output as (
+select violation_code , bucket , count(distinct time) as no_of_common_time , 
+dense_rank() over(partition by bucket order by count(*) desc) as rnk 
+from cte1 group by violation_code , bucket )
+select violation_code, bucket, no_of_common_time 
+from final_output 
+where rnk <= 3;
+
+8) Let’s try and find some seasonality in this data 
+a.) First, divide the year into some number of seasons, and 
+find frequencies of tickets for each season. (Hint: A quick Google search reveals the following seasons in NYC: 
+Spring(March, April, March); Summer(June, July, August); Fall(September, October, November);Winter(December, January, February)) 
+
+with cte as
+(
+select violation_code , summons_number , plate_id, 
+extract (month from to_date(from_unixtime(unix_timestamp(issue_date,'dd/MM/yyyy')))) as season_month
+from parking_violation_table
+)
+cte1 as 
+(
+select violation_code , summons_number , plate_id, 
+(case when season_month = 1 then 2 
+     when season_month = 2 then 3 
+     when season_month = 3 then 4 
+     when season_month = 4 then 5 
+     when season_month = 5 then 6 
+     when season_month = 6 then 7 
+     when season_month = 7 then 8 
+     when season_month = 8 then 9 
+     when season_month = 9 then 10 
+     when season_month = 10 then 11 
+     when season_month = 11 then 12 
+     when season_month = 12 then 1
+end) as season_in_NYC ,
+Ntile(4) over(order by (case when season_month = 1 then 2 
+     when season_month = 2 then 3 
+     when season_month = 3 then 4 
+     when season_month = 4 then 5 
+     when season_month = 5 then 6 
+     when season_month = 6 then 7 
+     when season_month = 7 then 8 
+     when season_month = 8 then 9 
+     when season_month = 9 then 10 
+     when season_month = 10 then 11 
+     when season_month = 11 then 12 
+     when season_month = 12 then 1
+end) asc ) as season
+from cte 
+)
+select season , count(*) as no_of_ticket 
+from cte1 
+group by season ;
+
+b.)Then, find the 3 most common violations for each of these seasons.
+
+with cte as
+(
+select violation_code , summons_number , plate_id, 
+extract (month from to_date(from_unixtime(unix_timestamp(issue_date,'dd/MM/yyyy')))) as season_month
+from parking_violation_table
+)
+cte1 as 
+(
+select violation_code , summons_number , plate_id, 
+(case when season_month = 1 then 2 
+     when season_month = 2 then 3 
+     when season_month = 3 then 4 
+     when season_month = 4 then 5 
+     when season_month = 5 then 6 
+     when season_month = 6 then 7 
+     when season_month = 7 then 8 
+     when season_month = 8 then 9 
+     when season_month = 9 then 10 
+     when season_month = 10 then 11 
+     when season_month = 11 then 12 
+     when season_month = 12 then 1
+end) as season_in_NYC ,
+Ntile(4) over(order by (case when season_month = 1 then 2 
+     when season_month = 2 then 3 
+     when season_month = 3 then 4 
+     when season_month = 4 then 5 
+     when season_month = 5 then 6 
+     when season_month = 6 then 7 
+     when season_month = 7 then 8 
+     when season_month = 8 then 9 
+     when season_month = 9 then 10 
+     when season_month = 10 then 11 
+     when season_month = 11 then 12 
+     when season_month = 12 then 1
+end) asc ) as season
+from cte 
+)
+cte2 as 
+(
+select violation_code , season, count(*) as no_of_code ,
+dense_rank() over(partition by season order by count(*) desc) as rnk
+from cte1
+group by violation_code , season)
+select violation_code, season, no_of_code
+from cte2 
+where rnk <= 3;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
