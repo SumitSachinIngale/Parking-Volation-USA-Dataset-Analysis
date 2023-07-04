@@ -87,6 +87,22 @@ select issuer_precinct , no_of_violation_code from cte where rnk <= 3;
 5.) Find out the properties of parking violations across different times of the day: The Violation Time field is specified 
 in a strange format. Find a way to make this into a time attribute that you can use to divide into groups ??
 
-
-
+with cte as 
+(
+select violation_code,
+unix_timestamp(regexp_replace(regexp_replace(violation_time, 'P$' ' pm') , 'A$' , ' am') , 'hhmm a') as time
+from parking_violation_table
+),
+cte1 as 
+(
+select violation_code , Ntile(6) over(order by time asc) as bucket 
+from cte
+),
+final_output as (
+select violation_code , bucket , count(*) as no_of_violation_code , 
+dense_rank() over(partition by bucket order by count(*) desc) as rnk 
+from cte1 group by violation_code , bucket )
+select violation_code , bucket , no_of_violation_code 
+from final_output 
+where rnk <= 3;
 
