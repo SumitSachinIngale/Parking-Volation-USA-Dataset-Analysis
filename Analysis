@@ -1,1 +1,92 @@
+1) Find the total number of tickets for each vehicle year ??
+
+select count(*) as no_of_tickets 
+from parking_violation_table
+group by vehicle_year;
+
+
+2) Find out how many unique states the cars which got parking tickets came from ??
+
+select registration_state , count(*) as no_of_tickets 
+from parking_violation_table
+group by registration_state;
+
+
+3) Some parking tickets don’t have addresses on them, which is cause for concern. Find out how many such tickets there are(i.e. tickets where either "Street Code 1" or "Street Code 2" or "Street Code 3" is empty ) ??
+
+select count(*) as no_of_tickets
+from parking_violation_table
+where street_code1 is NULL or  street_code2 is NULL or street_code3 is NULL;
+
+
+4) How often does each violation code occur? (frequency of violation codes - find the top 5)
+
+with code_table as
+(select violation_code , count(*) as no_of_violation_code , rank() over(order by count(*) desc) as rnk
+from parking_violation_table
+group by violation_code)
+select violation_code , no_of_violation_code 
+from code_table
+where rnk <= 5;
+
+
+5) How often does each vehicle body type get a parking ticket? How about the vehicle make? (find the top 5 for both) 
+
+with body_table as
+(select veh_body , count(*) as no_of_veh_body , rank() over(order by count(*) desc) as rnk
+from parking_violation_table
+group by veh_body
+)
+select veh_body , no_of_veh_body 
+from body_table
+where rnk <= 5;
+
+with make_table as
+(select veh_make , count(*) as no_of_veh_make , rank() over(order by count(*) desc) as rnk
+from parking_violation_table
+group by veh_make
+)
+select veh_make , no_of_veh_make 
+from make_table
+here rnk <= 5;
+
+
+6) A precinct is a police station that has a certain zone of the city under its command. Find the (5 highest) frequencies of:
+a.) Violating Precincts (this is the precinct of the zone where the violation occurred) 
+
+with violating_precincts_table as
+(select violation_precinct , count(*) as no_of_violation_precinct , rank() over(order by count(*) desc) as rnk
+from parking_violation_table
+group by violation_precinct
+)
+select violation_precinct , no_of_violation_precinct 
+from violating_precincts_table
+where rnk <= 5;
+
+b.) Issuer Precincts (this is the precinct that issued the ticket) 
+
+with issuer_precincts_table as
+(select issuer_precinct , count(*) as no_of_issuer_precinct , rank() over(order by count(*) desc) as rnk
+from parking_violation_table
+group by issuer_precinct
+)
+select violation_precinct , no_of_violation_precinct 
+from issuer_precincts_table
+where rnk <= 5;
+
+4.) Find the violation code frequency across 3 precincts which have issued the most number of tickets -
+do these precinct zones have an exceptionally high frequency of certain violation codes? 
+
+with cte as (
+select issuer_precinct , count(distinct violation_code) as no_of_violation_code ,
+row_number() over( order by count(*) desc) as rnk
+from parking_violation_table
+group by issuer_precinct)
+select issuer_precinct , no_of_violation_code from cte where rnk <= 3;
+
+5.) Find out the properties of parking violations across different times of the day: The Violation Time field is specified 
+in a strange format. Find a way to make this into a time attribute that you can use to divide into groups ??
+
+
+
 
